@@ -3,6 +3,7 @@
 #include "image_utils.h"
 #include "filesystem.h"
 #include "esp_task_wdt.h"
+#include "debug.h"
 
 #include <Arduino.h>
 
@@ -14,38 +15,40 @@ bool isDisplayJobScheduled = false;
 unsigned long displayJobStart = 0;
 
 void clearDisplay() {
-    Serial.println("[DISPLAY] Initiating display clear operation");
-    Serial.println("[DISPLAY] Clearing Display...");
+    debug.println("[DISPLAY] Initiating display clear operation");
+    debug.println("[DISPLAY] Clearing Display...");
     display.setFullWindow();
     display.firstPage();
     do {
         display.fillScreen(GxEPD_WHITE);
     } while (display.nextPage());
-    Serial.println("[DISPLAY] Display Cleared.");
-    Serial.println("[DISPLAY] Display clear operation completed");
+    // display.clearScreen();
+    debug.println("[DISPLAY] Display Cleared.");
+    debug.println("[DISPLAY] Display clear operation completed");
 }
 
 void showSelectedImage() {
-    Serial.println("[DISPLAY] Starting image rendering process");
-    Serial.println("[DISPLAY] Showing Selected Image...");
+    debug.println("[DISPLAY] Starting image rendering process");
+        clearDisplay();
+        debug.println("[DISPLAY] Showing Selected Image...");
     drawProgmemFileFromSpiffs(SELECTED_IMAGE_BUFFER_PATH, 640, 384);
-    Serial.println("[DISPLAY] Selected Image Displayed.");
-    Serial.println("[DISPLAY] Image rendering completed");
+    debug.println("[DISPLAY] Selected Image Displayed.");
+    debug.println("[DISPLAY] Image rendering completed");
 }
 
 void handleDisplayJob() {
     if (isImageRefreshPending) {
-        Serial.println("[DISPLAY] Scheduling display refresh job");
-        Serial.println("[DISPLAY] Image refresh pending. Scheduling display job...");
+        debug.println("[DISPLAY] Scheduling display refresh job");
+        debug.println("[DISPLAY] Image refresh pending. Scheduling display job...");
         displayJobStart = millis() + 1000UL;
         isImageRefreshPending = false;
         isDisplayJobScheduled = true;
-        Serial.printf("[DISPLAY] Job scheduled for timestamp: %lu ms\n", displayJobStart);
+        debug.println("[DISPLAY] Job scheduled for timestamp: " + String(displayJobStart) + "ms");
     }
     if (isDisplayJobScheduled && millis() > displayJobStart) {
-        Serial.println("[DISPLAY] Executing scheduled display job...");
+        debug.println("[DISPLAY] Executing scheduled display job...");
         isDisplayJobScheduled = false;
         showSelectedImage();
-        Serial.println("[DISPLAY] Display job completed.");
+        debug.println("[DISPLAY] Display job completed.");
     }
 }

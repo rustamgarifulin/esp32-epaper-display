@@ -1,4 +1,5 @@
 #include "config.h"
+#include "debug.h"
 
 #include <Arduino.h>
 
@@ -13,12 +14,15 @@ const int WDT_TIMEOUT_SECONDS = 120;
 
 const int LED_PIN = 2;
 
+const unsigned long FETCH_INTERVAL = 1000 * 60 * 15;  // 15 минут
+const unsigned long DISPLAY_DELAY = 1000 * 5;         // 5 секунд
+
 void initConfig() {
-    Serial.println("[CONFIG] Starting configuration initialization...");
-    Serial.printf("[CONFIG] Setting hostname: %s\n", hostname);
-    Serial.printf("[CONFIG] Configuring WiFi - SSID: %s\n", ssid);
-    Serial.printf("[CONFIG] Display dimensions: %dx%d\n", DISPLAY_WIDTH, DISPLAY_HEIGHT);
-    Serial.printf("[CONFIG] Watchdog timeout: %d seconds\n", WDT_TIMEOUT_SECONDS);
-    Serial.printf("[CONFIG] LED pin configured: %d\n", LED_PIN);
-    Serial.println("[CONFIG] Configuration initialization completed");
+    debug.println("[CONFIG] Starting configuration initialization...");
+    debug.println("[CONFIG] Setting hostname: " + String(hostname));
+    debug.println("[CONFIG] Configuring WiFi - SSID: " + String(ssid));
+    debug.println("[CONFIG] Display dimensions: " + String(DISPLAY_WIDTH) + String(DISPLAY_HEIGHT));
+    debug.println("[CONFIG] Watchdog timeout: " + String(WDT_TIMEOUT_SECONDS) + " seconds");
+    debug.println("[CONFIG] LED pin configured: " + String(LED_PIN));
+    debug.println("[CONFIG] Configuration initialization completed");
 }
