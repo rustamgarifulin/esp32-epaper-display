@@ -14,9 +14,6 @@ const int WDT_TIMEOUT_SECONDS = 120;
 
 const int LED_PIN = 2;
 
-const unsigned long FETCH_INTERVAL = 1000 * 60 * 15;  // 15 минут
-const unsigned long DISPLAY_DELAY = 1000 * 5;         // 5 секунд
-
 void initConfig() {
     debug.println("[CONFIG] Starting configuration initialization...");
     debug.println("[CONFIG] Setting hostname: " + String(hostname));

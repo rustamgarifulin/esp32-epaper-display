@@ -16,7 +16,7 @@ class Debug {
 private:
     String currentMessage;
     Adafruit_SSD1306* display;
-    
+
     void scrollLines();
     void updateDisplay();
 

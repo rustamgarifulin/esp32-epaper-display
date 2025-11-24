@@ -1,0 +1,3 @@
+# Полное отключение brownout detector для работы от USB кабеля
+CONFIG_ESP32_BROWNOUT_DET=n
+CONFIG_BROWNOUT_DET=n

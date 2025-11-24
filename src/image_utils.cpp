@@ -48,9 +48,10 @@ void drawBitmapFromSpiffs(const char *filename, int16_t x, int16_t y, bool with_
     }
 
     debug.println("[IMAGE_UTILS] Opening file: " + String(filename));
-    file = SPIFFS.open(String("/") + filename, "r");
+    // SPIFFS смонтирован в /data
+    file = SPIFFS.open(String("/data/") + filename, "r");
     if (!file) {
-        debug.println("[IMAGE_UTILS] Failed to open file.");
+        debug.println("[IMAGE_UTILS] Failed to open file at path: /data/" + String(filename));
         return;
     }
 
@@ -271,9 +272,10 @@ void drawProgmemFileFromSpiffs(const char *filename, uint16_t width, uint16_t he
 
     bool with_color = true;
 
-    fs::File file = SPIFFS.open(String("/") + filename, "r");
+    // SPIFFS смонтирован в /data, поэтому используем правильный префикс
+    fs::File file = SPIFFS.open(String("/data/") + filename, "r");
     if (!file) {
-        debug.println("[IMAGE_UTILS] Error: File access failed");
+        debug.println("[IMAGE_UTILS] Error: File access failed at path: /data/" + String(filename));
         return;
     }
 

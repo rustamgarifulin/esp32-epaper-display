@@ -5,8 +5,11 @@
 #include <display.h>
 #include <SPIFFS.h>
 #include "debug.h"
+#include <ArduinoJson.h>
+#include <time.h>
 
 #include "filesystem.h"
+#include "config.h"
 
 AsyncWebServer webServer(80);
 
@@ -45,6 +48,33 @@ void startWebserver() {
     webServer.on("/api/system/list", HTTP_GET, [](AsyncWebServerRequest *request) {
         debug.println("[WEBSERVER] Received GET request on '/api/system/list'");
         request->send(200, "text/plain", listFiles());
+    });
+
+    webServer.on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+        Serial.println("[WEBSERVER] Received GET request on '/api/status'");
+
+        // Create JSON response
+        JsonDocument doc;
+
+        // Add system information
+        doc["system"]["freeHeap"] = ESP.getFreeHeap();
+        doc["system"]["uptime"] = millis();
+
+        // Add WiFi information
+        doc["wifi"]["ssid"] = WiFi.SSID();
+        doc["wifi"]["rssi"] = WiFi.RSSI();
+        doc["wifi"]["ip"] = WiFi.localIP().toString();
+
+        // Add power source
+        doc["power"]["source"] = "USB";
+
+        // Add timestamp
+        doc["timestamp"] = millis();
+
+        String response;
+        serializeJson(doc, response);
+
+        request->send(200, "application/json", response);
     });
 
     webServer.on("/api/image/draw", HTTP_GET, [](AsyncWebServerRequest *request) {

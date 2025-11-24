@@ -103,7 +103,8 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename,
 void handleImageFileUpload(AsyncWebServerRequest *request, String filename,
                            size_t index, uint8_t *data, size_t len, bool final)
 {
-    String folder = String("/");
+    // SPIFFS смонтирован в /data
+    String folder = String("/data/");
     filename = String(SELECTED_IMAGE_BUFFER_PATH);
     handleFileUpload(request, filename, index, data, len, final, folder);
 }

@@ -19,9 +19,6 @@ extern const int WDT_TIMEOUT_SECONDS;
 
 extern const int LED_PIN;
 
-extern const unsigned long FETCH_INTERVAL;     // Интервал запроса изображения
-extern const unsigned long DISPLAY_DELAY;      // Задержка перед сном после обновления дисплея
-
 void initConfig();
 
 #endif
