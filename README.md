@@ -2,6 +2,10 @@
 
 A versatile ESP32-based controller for e-paper displays with web interface support. This project allows you to upload and display images on e-paper displays through a web interface.
 
+## Related Projects
+
+- **[Weather Server](https://github.com/rustamgarifulin/esp32-epaper-display-server)** - Bun server that generates weather images and sends them to this device
+
 ---
 
 I’m not a C++ developer and don’t understand many concepts of this language. I’ll be happy to receive pull requests and feature requests in the Issues section.
@@ -131,4 +135,4 @@ pio run -t upload
 
 ## License
 
-No license. If you see the code, feel free to use it however you want. I don’t care.
+MIT License
