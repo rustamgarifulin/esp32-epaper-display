@@ -48,7 +48,7 @@ void drawBitmapFromSpiffs(const char *filename, int16_t x, int16_t y, bool with_
     }
 
     debug.println("[IMAGE_UTILS] Opening file: " + String(filename));
-    // SPIFFS смонтирован в /data
+    // SPIFFS is mounted at /data
     file = SPIFFS.open(String("/data/") + filename, "r");
     if (!file) {
         debug.println("[IMAGE_UTILS] Failed to open file at path: /data/" + String(filename));
@@ -272,21 +272,35 @@ void drawProgmemFileFromSpiffs(const char *filename, uint16_t width, uint16_t he
 
     bool with_color = true;
 
-    // SPIFFS смонтирован в /data, поэтому используем правильный префикс
-    fs::File file = SPIFFS.open(String("/data/") + filename, "r");
+    // SPIFFS is mounted at /data, so we use the correct prefix
+    String filePath = String("/data/") + filename;
+    fs::File file = SPIFFS.open(filePath, "r");
     if (!file) {
-        debug.println("[IMAGE_UTILS] Error: File access failed at path: /data/" + String(filename));
+        debug.println("[IMAGE_UTILS] Error: File access failed at path: " + filePath);
+        return;
+    }
+
+    // Check file size
+    size_t fileSize = file.size();
+    size_t expectedSize = width * height * sizeof(uint16_t);
+    debug.println("[IMAGE_UTILS] File size: " + String(fileSize) + " bytes, expected: " + String(expectedSize) + " bytes");
+
+    if (fileSize != expectedSize) {
+        debug.println("[IMAGE_UTILS] ERROR: File size mismatch! File may be corrupted.");
+        file.close();
         return;
     }
 
 
     const size_t rowSize = width * sizeof(uint16_t);
+    debug.println("[IMAGE_UTILS] Allocating row buffer: " + String(rowSize) + " bytes for width " + String(width));
     uint8_t *rowBuffer = (uint8_t *) malloc(rowSize);
     if (!rowBuffer) {
         debug.println("[IMAGE_UTILS] Failed to allocate memory for row buffer.");
         file.close();
         return;
     }
+    debug.println("[IMAGE_UTILS] Row buffer allocated successfully at address: " + String((unsigned long)rowBuffer, HEX));
 
 
     uint8_t *monoBuffer = (uint8_t *) malloc(width / 8);
@@ -307,10 +321,22 @@ void drawProgmemFileFromSpiffs(const char *filename, uint16_t width, uint16_t he
 
     uint16_t y = 0;
 
+    debug.println("[IMAGE_UTILS] Starting row-by-row reading. File position: " + String(file.position()) + ", File size: " + String(file.size()));
+
     while (y < height) {
+        size_t filePosBefore = file.position();
         size_t bytesRead = file.read(rowBuffer, rowSize);
+        size_t filePosAfter = file.position();
+
+        if (y == 0) {
+            debug.println("[IMAGE_UTILS] First row read: " + String(bytesRead) + " bytes (expected " + String(rowSize) + ")");
+            debug.println("[IMAGE_UTILS] File position before: " + String(filePosBefore) + ", after: " + String(filePosAfter));
+            debug.println("[IMAGE_UTILS] File available: " + String(file.available()));
+        }
+
         if (bytesRead != rowSize) {
             debug.println("[IMAGE_UTILS] Incomplete row read at line " + String(y) +  ": read " + String(bytesRead) + " bytes, expected " + String(rowSize) + ".");
+            debug.println("[IMAGE_UTILS] File position: " + String(file.position()) + ", available: " + String(file.available()));
             break;
         }
 

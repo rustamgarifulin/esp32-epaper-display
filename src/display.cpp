@@ -40,12 +40,12 @@ void handleDisplayJob() {
     if (isImageRefreshPending) {
         debug.println("[DISPLAY] Scheduling display refresh job");
         debug.println("[DISPLAY] Image refresh pending. Scheduling display job...");
-        displayJobStart = millis() + 1000UL;
+        displayJobStart = millis();  // Save current time for delay countdown
         isImageRefreshPending = false;
         isDisplayJobScheduled = true;
-        debug.println("[DISPLAY] Job scheduled for timestamp: " + String(displayJobStart) + "ms");
+        debug.println("[DISPLAY] Job scheduled with 2000ms delay from: " + String(displayJobStart) + "ms");
     }
-    if (isDisplayJobScheduled && millis() > displayJobStart) {
+    if (isDisplayJobScheduled && (millis() - displayJobStart >= 2000UL)) {
         debug.println("[DISPLAY] Executing scheduled display job...");
         isDisplayJobScheduled = false;
         showSelectedImage();

@@ -23,8 +23,8 @@ const long statusUpdateInterval = 5000;  // Update status message every 5 second
 String data;
 
 void setup() {
-    // КРИТИЧЕСКИ ВАЖНО: Отключаем brownout detector в первую очередь
-    // Это предотвращает перезагрузку при просадках напряжения от USB кабеля
+    // CRITICAL: Disable brownout detector first
+    // This prevents reboot on voltage drops from USB cable
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
     Serial.begin(115200);
@@ -34,14 +34,14 @@ void setup() {
     Serial.println("Starting initialization...");
     Serial.println("Brownout detector DISABLED for USB power");
 
-    // Ранняя инициализация WiFi режима для стабильности
+    // Early WiFi mode initialization for stability
     WiFi.mode(WIFI_STA);
     delay(100);
 
     // I2C-OLED display
     Serial.println("Initializing OLED debug...");
     debug.begin();
-    delay(200); // Увеличена задержка для стабилизации I2C
+    delay(200); // Increased delay for I2C stabilization
     Serial.println("OLED initialized");
     debug.println("[SYSTEM] Starting system initialization...");
 
@@ -53,7 +53,7 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, LOW);
     debug.println("[SYSTEM] LED pin initialized");
-    delay(200); // Задержка перед следующим модулем
+    delay(200); // Delay before next module
 
     Serial.println("Initializing SPIFFS...");
     debug.println("[FILESYSTEM] Initializing SPIFFS...");
@@ -94,23 +94,23 @@ void setup() {
         debug.println("[WDT] ERROR: Watchdog initialization failed");
     }
     debug.println("[WDT] Watchdog timer initialized");
-    delay(200); // Задержка после WDT
+    delay(200); // Delay after WDT
 
-    // WiFi подключение ПЕРЕД инициализацией дисплея (чтобы разнести пики потребления)
+    // WiFi connection BEFORE display initialization (to spread power consumption peaks)
     debug.println("[WIFI] Initiating connection...");
 
-    // Увеличенная задержка перед WiFi для стабилизации питания
-    delay(1000); // Была 500ms, увеличена до 1000ms
+    // Increased delay before WiFi for power stabilization
+    delay(1000); // Was 500ms, increased to 1000ms
 
     String wifiMsg = "[WIFI] Connecting to SSID: ";
     wifiMsg += ssid;
     debug.println(wifiMsg);
 
-    // Установить минимальную мощность передатчика для снижения потребления
-    WiFi.setTxPower(WIFI_POWER_8_5dBm);  // Минимальная мощность для USB
+    // Set minimum transmitter power to reduce consumption
+    WiFi.setTxPower(WIFI_POWER_8_5dBm);  // Minimum power for USB
     debug.println("[WIFI] TX power set to 8.5dBm (minimum for USB)");
 
-    // Отключить спящий режим WiFi для стабильности
+    // Disable WiFi sleep mode for stability
     WiFi.setSleep(false);
 
     WiFi.begin(ssid, password);
@@ -135,11 +135,11 @@ void setup() {
     ipMsg += WiFi.localIP().toString();
     debug.println(ipMsg);
 
-    // Задержка после WiFi перед инициализацией дисплея
+    // Delay after WiFi before display initialization
     debug.println("[SYSTEM] Waiting before display init...");
     delay(1000);
 
-    // E-Paper display (после WiFi)
+    // E-Paper display (after WiFi)
     debug.println("[DISPLAY] Initializing display hardware...");
     hspi.begin(13, 12, 14, 15);
     display.epd2.selectSPI(hspi, SPISettings(4000000, MSBFIRST, SPI_MODE0));
@@ -170,9 +170,6 @@ void loop() {
         previousStatusUpdate = currentMillis;
         String statusMsg = "[SYSTEM] Ready | IP: ";
         statusMsg += WiFi.localIP().toString();
-        statusMsg += " | Uptime: ";
-        statusMsg += String(currentMillis / 1000);
-        statusMsg += "s";
         debug.println(statusMsg);
     }
 
