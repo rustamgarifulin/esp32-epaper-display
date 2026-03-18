@@ -7,6 +7,9 @@
 #include "debug.h"
 #include <Arduino.h>
 
+volatile bool uploadSuccess = false;
+const char* uploadErrorMessage = nullptr;
+
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 {
     debug.println("[FILESYSTEM] Scanning directory: " + String(dirname));
@@ -65,6 +68,8 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename,
 
     if (index == 0)
     {
+        uploadSuccess = false;
+        uploadErrorMessage = nullptr;
         path = folder + filename;
         debug.println("[FILESYSTEM] Starting new file upload: " + String(path.c_str()));
         SPIFFS.remove(path);
@@ -72,12 +77,14 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename,
         if (!f)
         {
             debug.println("[FILESYSTEM] Error: Failed to create output file");
-            request->send(500, "text/plain", "Internal Server Error");
+            uploadErrorMessage = "Failed to create output file";
             return;
         }
         totallength = 0;
         lastindex = 0;
     }
+
+    if (uploadErrorMessage) return; // Skip if upload already failed
 
     if (len) // Something to write?
     {
@@ -93,6 +100,8 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename,
 
     if (final)
     {
+        if (uploadErrorMessage) return; // Upload already failed
+
         f.close();
         debug.println("[FILESYSTEM] Upload completed: " + String(filename.c_str()) + " (Total: " + String(totallength) + " bytes)");
 
@@ -105,7 +114,7 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename,
         File verifyFile = SPIFFS.open(path, "r");
         if (!verifyFile) {
             debug.println("[FILESYSTEM] ERROR: Cannot open file for verification!");
-            request->send(500, "text/plain", "File verification failed");
+            uploadErrorMessage = "File verification failed";
             return;
         }
 
@@ -121,16 +130,15 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename,
 
         if (testRead == 0) {
             debug.println("[FILESYSTEM] ERROR: File appears empty or unreadable!");
-            request->send(500, "text/plain", "File unreadable");
+            uploadErrorMessage = "File unreadable";
             return;
         }
 
         debug.println("[FILESYSTEM] File verification successful");
         debug.println("[FILESYSTEM] Setting image refresh flag...");
         isImageRefreshPending = true;
+        uploadSuccess = true;
         debug.println("[FILESYSTEM] Image refresh flag set to TRUE");
-        request->send(200, "text/plain", "Upload complete");
-        debug.println("[FILESYSTEM] Response sent to client");
     }
     debug.println("[FILESYSTEM] Upload progress: " + String(totallength) + " bytes written");
 }

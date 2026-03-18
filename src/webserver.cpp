@@ -87,8 +87,13 @@ void startWebserver() {
         "/api/image/upload",
         HTTP_POST,
         [](AsyncWebServerRequest *request) {
-            debug.println("[WEBSERVER] Received POST request on '/api/image/upload'");
-            request->send(200, "text/plain", "Upload complete");
+            debug.println("[WEBSERVER] Upload request completed");
+            if (uploadSuccess) {
+                request->send(200, "text/plain", "Upload complete");
+            } else {
+                const char* err = uploadErrorMessage ? uploadErrorMessage : "Upload failed";
+                request->send(500, "text/plain", err);
+            }
         },
         handleImageFileUpload
     );

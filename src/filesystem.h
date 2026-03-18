@@ -4,6 +4,9 @@
 #include <FS.h>
 #include <ESPAsyncWebServer.h>
 
+extern volatile bool uploadSuccess;
+extern const char* uploadErrorMessage;
+
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
 String listFiles();
 void handleFileUpload(AsyncWebServerRequest *request, String filename,
