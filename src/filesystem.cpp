@@ -1,6 +1,6 @@
 #include "filesystem.h"
 #include "image_utils.h"
-#include "SPIFFS.h"
+#include <LittleFS.h>
 #include "config.h"
 #include "display.h"
 
@@ -51,8 +51,8 @@ void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
 
 String listFiles()
 {
-    debug.println("Listing files in SPIFFS...");
-    listDir(SPIFFS, "/", 0);
+    debug.println("Listing files in LittleFS...");
+    listDir(LittleFS, "/", 0);
     return ("Directory listing sent to Serial.");
 }
 
@@ -72,8 +72,8 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename,
         uploadErrorMessage = nullptr;
         path = folder + filename;
         debug.println("[FILESYSTEM] Starting new file upload: " + String(path.c_str()));
-        SPIFFS.remove(path);
-        f = SPIFFS.open(path, "w");
+        LittleFS.remove(path);
+        f = LittleFS.open(path, "w");
         if (!f)
         {
             debug.println("[FILESYSTEM] Error: Failed to create output file");
@@ -105,13 +105,13 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename,
         f.close();
         debug.println("[FILESYSTEM] Upload completed: " + String(filename.c_str()) + " (Total: " + String(totallength) + " bytes)");
 
-        // Wait a moment for SPIFFS to flush
+        // Wait a moment for LittleFS to flush
         delay(100);
 
         // Verify the file is readable and has correct size
         debug.println("[FILESYSTEM] Verifying uploaded file...");
         path = folder + filename;
-        File verifyFile = SPIFFS.open(path, "r");
+        File verifyFile = LittleFS.open(path, "r");
         if (!verifyFile) {
             debug.println("[FILESYSTEM] ERROR: Cannot open file for verification!");
             uploadErrorMessage = "File verification failed";
@@ -146,8 +146,7 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename,
 void handleImageFileUpload(AsyncWebServerRequest *request, String filename,
                            size_t index, uint8_t *data, size_t len, bool final)
 {
-    // SPIFFS is mounted at /data
-    String folder = String("/data/");
+    String folder = String("/");
     filename = String(SELECTED_IMAGE_BUFFER_PATH);
     handleFileUpload(request, filename, index, data, len, final, folder);
 }

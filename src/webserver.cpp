@@ -3,7 +3,7 @@
 #include <WiFi.h>
 #include <Arduino.h>
 #include <display.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include "debug.h"
 #include <ArduinoJson.h>
 #include <time.h>
@@ -98,7 +98,7 @@ void startWebserver() {
         handleImageFileUpload
     );
 
-    webServer.serveStatic("/fs", SPIFFS, "/");
+    webServer.serveStatic("/fs", LittleFS, "/");
     debug.println("[WEBSERVER] Static file serving enabled");
 
     webServer.onNotFound(notFoundResponse);

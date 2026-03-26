@@ -4,7 +4,7 @@
 #include "filesystem.h"
 #include "webserver.h"
 #include <WiFi.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include "esp_task_wdt.h"
 #include "debug.h"
 #include "soc/soc.h"
@@ -55,20 +55,20 @@ void setup() {
     debug.println("[SYSTEM] LED pin initialized");
     delay(200); // Delay before next module
 
-    Serial.println("Initializing SPIFFS...");
-    debug.println("[FILESYSTEM] Initializing SPIFFS...");
+    Serial.println("Initializing LittleFS...");
+    debug.println("[FILESYSTEM] Initializing LittleFS...");
 
     // Try to format if mount fails
-    if (!SPIFFS.begin(true, "/data")) {
-        Serial.println("SPIFFS mount failed! Attempting format...");
-        debug.println("[FILESYSTEM] ERROR: SPIFFS mount failed, formatting...");
+    if (!LittleFS.begin(true, "/data")) {
+        Serial.println("LittleFS mount failed! Attempting format...");
+        debug.println("[FILESYSTEM] ERROR: LittleFS mount failed, formatting...");
 
-        SPIFFS.format();
+        LittleFS.format();
         delay(1000);
 
-        if (!SPIFFS.begin(true, "/data")) {
-            Serial.println("SPIFFS format failed! System halted.");
-            debug.println("[FILESYSTEM] CRITICAL: Cannot initialize SPIFFS!");
+        if (!LittleFS.begin(true, "/data")) {
+            Serial.println("LittleFS format failed! System halted.");
+            debug.println("[FILESYSTEM] CRITICAL: Cannot initialize LittleFS!");
             while(1) {
                 digitalWrite(LED_PIN, HIGH);
                 delay(100);
@@ -77,10 +77,10 @@ void setup() {
             }
         }
     }
-    Serial.println("SPIFFS mounted successfully");
-    debug.println("[FILESYSTEM] SPIFFS mounted successfully");
+    Serial.println("LittleFS mounted successfully");
+    debug.println("[FILESYSTEM] LittleFS mounted successfully");
 
-    File file = SPIFFS.open("/data/intro.txt");
+    File file = LittleFS.open("/intro.txt");
     if (!file) {
         debug.println("Failed to open /data/intro.txt");
     } else {
@@ -142,7 +142,7 @@ void setup() {
     // E-Paper display (after WiFi)
     debug.println("[DISPLAY] Initializing display hardware...");
     hspi.begin(13, 12, 14, 15);
-    display.epd2.selectSPI(hspi, SPISettings(4000000, MSBFIRST, SPI_MODE0));
+    display.epd2.selectSPI(hspi, SPISettings(10000000, MSBFIRST, SPI_MODE0));
     display.init(115200);
     debug.println("[DISPLAY] Display hardware initialized successfully");
 
