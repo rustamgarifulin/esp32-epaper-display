@@ -28,12 +28,10 @@ void clearDisplay() {
 }
 
 void showSelectedImage() {
-    debug.println("[DISPLAY] Starting image rendering process");
-        clearDisplay();
-        debug.println("[DISPLAY] Showing Selected Image...");
+    unsigned long t0 = millis();
+    Serial.println("[DISPLAY] === Starting image rendering ===");
     drawProgmemFileFromSpiffs(SELECTED_IMAGE_BUFFER_PATH, 640, 384);
-    debug.println("[DISPLAY] Selected Image Displayed.");
-    debug.println("[DISPLAY] Image rendering completed");
+    Serial.println("[DISPLAY] === Rendering completed in " + String(millis() - t0) + " ms ===");
 }
 
 void handleDisplayJob() {
@@ -45,7 +43,7 @@ void handleDisplayJob() {
         isDisplayJobScheduled = true;
         debug.println("[DISPLAY] Job scheduled with 2000ms delay from: " + String(displayJobStart) + "ms");
     }
-    if (isDisplayJobScheduled && (millis() - displayJobStart >= 2000UL)) {
+    if (isDisplayJobScheduled && (millis() - displayJobStart >= 100UL)) {
         debug.println("[DISPLAY] Executing scheduled display job...");
         isDisplayJobScheduled = false;
         showSelectedImage();

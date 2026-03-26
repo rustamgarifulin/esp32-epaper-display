@@ -3,7 +3,7 @@
 #include "display.h"
 #include "config.h"
 #include "esp_task_wdt.h"
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <Arduino.h>
 #include "debug.h"
 
@@ -48,8 +48,8 @@ void drawBitmapFromSpiffs(const char *filename, int16_t x, int16_t y, bool with_
     }
 
     debug.println("[IMAGE_UTILS] Opening file: " + String(filename));
-    // SPIFFS is mounted at /data
-    file = SPIFFS.open(String("/data/") + filename, "r");
+    // LittleFS is mounted at /data
+    file = LittleFS.open(String("/") + filename, "r");
     if (!file) {
         debug.println("[IMAGE_UTILS] Failed to open file at path: /data/" + String(filename));
         return;
@@ -268,136 +268,130 @@ void drawBitmapFromSpiffs(const char *filename, int16_t x, int16_t y, bool with_
 }
 
 void drawProgmemFileFromSpiffs(const char *filename, uint16_t width, uint16_t height) {
-    debug.println("[IMAGE_UTILS] Loading image file: " + String(filename));
+    Serial.println("[IMAGE_UTILS] >>> drawProgmemFileFromSpiffs START");
+    Serial.flush();
+    unsigned long totalStart = millis();
 
     bool with_color = true;
 
-    // SPIFFS is mounted at /data, so we use the correct prefix
-    String filePath = String("/data/") + filename;
-    fs::File file = SPIFFS.open(filePath, "r");
+    String filePath = String("/") + filename;
+    fs::File file = LittleFS.open(filePath, "r");
     if (!file) {
         debug.println("[IMAGE_UTILS] Error: File access failed at path: " + filePath);
         return;
     }
 
-    // Check file size
     size_t fileSize = file.size();
     size_t expectedSize = width * height * sizeof(uint16_t);
-    debug.println("[IMAGE_UTILS] File size: " + String(fileSize) + " bytes, expected: " + String(expectedSize) + " bytes");
+    Serial.println("[IMAGE_UTILS] File size: " + String(fileSize) + " expected: " + String(expectedSize));
+    Serial.flush();
 
     if (fileSize != expectedSize) {
-        debug.println("[IMAGE_UTILS] ERROR: File size mismatch! File may be corrupted.");
+        Serial.println("[IMAGE_UTILS] ERROR: File size mismatch!");
         file.close();
         return;
     }
 
+    // Batch processing: BATCH_ROWS rows at a time to reduce SPI command overhead
+    const uint16_t BATCH_ROWS = 16;
+    const size_t rowBytes = width / 8;  // 80 bytes per row for mono/color
+    const size_t rowSize = width * sizeof(uint16_t);  // 1280 bytes per row RGB565
 
-    const size_t rowSize = width * sizeof(uint16_t);
-    debug.println("[IMAGE_UTILS] Allocating row buffer: " + String(rowSize) + " bytes for width " + String(width));
-    uint8_t *rowBuffer = (uint8_t *) malloc(rowSize);
-    if (!rowBuffer) {
-        debug.println("[IMAGE_UTILS] Failed to allocate memory for row buffer.");
-        file.close();
-        return;
-    }
-    debug.println("[IMAGE_UTILS] Row buffer allocated successfully at address: " + String((unsigned long)rowBuffer, HEX));
+    // Allocate batch buffers
+    uint8_t *readBuffer = (uint8_t *) malloc(rowSize * BATCH_ROWS);
+    uint8_t *monoBuffer = (uint8_t *) malloc(rowBytes * BATCH_ROWS);
+    uint8_t *colorBuffer = (uint8_t *) malloc(rowBytes * BATCH_ROWS);
 
-
-    uint8_t *monoBuffer = (uint8_t *) malloc(width / 8);
-    uint8_t *colorBuffer = (uint8_t *) malloc(width / 8);
-
-    if (!monoBuffer || !colorBuffer) {
-        debug.println("[IMAGE_UTILS] Failed to allocate memory for mono/color buffers.");
-        free(rowBuffer);
+    if (!readBuffer || !monoBuffer || !colorBuffer) {
+        debug.println("[IMAGE_UTILS] Failed to allocate buffers");
+        if (readBuffer) free(readBuffer);
         if (monoBuffer) free(monoBuffer);
         if (colorBuffer) free(colorBuffer);
         file.close();
         return;
     }
 
-    debug.println("[IMAGE_UTILS] Starting to process binary file with dimensions " + String(width) + "x" + String(height) +  " (RGB565)...");
+    Serial.println("[IMAGE_UTILS] Batch size: " + String(BATCH_ROWS) + " rows, buffer: " + String(rowSize * BATCH_ROWS) + " bytes");
 
-    display.clearScreen();
+    // Initialize display controller and RAM (no refresh). Only 289ms vs 32s for clearScreen().
+    unsigned long t0 = millis();
+    display.writeScreenBuffer();
+    Serial.println("[TIMING] writeScreenBuffer: " + String(millis() - t0) + " ms");
 
+    // Process image in batches
+    t0 = millis();
     uint16_t y = 0;
 
-    debug.println("[IMAGE_UTILS] Starting row-by-row reading. File position: " + String(file.position()) + ", File size: " + String(file.size()));
-
     while (y < height) {
-        size_t filePosBefore = file.position();
-        size_t bytesRead = file.read(rowBuffer, rowSize);
-        size_t filePosAfter = file.position();
+        uint16_t batchH = min((uint16_t)BATCH_ROWS, (uint16_t)(height - y));
+        size_t batchReadSize = rowSize * batchH;
 
-        if (y == 0) {
-            debug.println("[IMAGE_UTILS] First row read: " + String(bytesRead) + " bytes (expected " + String(rowSize) + ")");
-            debug.println("[IMAGE_UTILS] File position before: " + String(filePosBefore) + ", after: " + String(filePosAfter));
-            debug.println("[IMAGE_UTILS] File available: " + String(file.available()));
-        }
-
-        if (bytesRead != rowSize) {
-            debug.println("[IMAGE_UTILS] Incomplete row read at line " + String(y) +  ": read " + String(bytesRead) + " bytes, expected " + String(rowSize) + ".");
-            debug.println("[IMAGE_UTILS] File position: " + String(file.position()) + ", available: " + String(file.available()));
+        // Read batch from LittleFS
+        size_t bytesRead = file.read(readBuffer, batchReadSize);
+        if (bytesRead != batchReadSize) {
+            debug.println("[IMAGE_UTILS] Read error at row " + String(y));
             break;
         }
 
+        // Initialize batch output buffers to white
+        memset(monoBuffer, 0xFF, rowBytes * batchH);
+        memset(colorBuffer, 0xFF, rowBytes * batchH);
 
-        memset(monoBuffer, 0xFF, width / 8);
-        memset(colorBuffer, 0xFF, width / 8);
+        // Convert RGB565 to 1bpp mono + color
+        for (uint16_t row = 0; row < batchH; row++) {
+            uint8_t *rowData = readBuffer + row * rowSize;
+            uint8_t *monoRow = monoBuffer + row * rowBytes;
+            uint8_t *colorRow = colorBuffer + row * rowBytes;
 
-        for (uint16_t col = 0; col < width; col++) {
-            uint8_t lsb = rowBuffer[2 * col];
-            uint8_t msb = rowBuffer[2 * col + 1];
+            for (uint16_t col = 0; col < width; col++) {
+                uint16_t idx = col * 2;
+                uint16_t pixel565 = ((uint16_t)rowData[idx + 1] << 8) | rowData[idx];
 
-            uint16_t pixel565 = ((uint16_t) msb << 8) | lsb;
+                uint8_t r = (pixel565 & 0xF800) >> 8;
+                uint8_t g = (pixel565 & 0x07E0) >> 3;
+                uint8_t b = (pixel565 & 0x001F) << 3;
 
+                bool whitish = ((uint16_t)r + g + b) > 384;
 
-            uint8_t r = (pixel565 & 0xF800) >> 8;
-            uint8_t g = (pixel565 & 0x07E0) >> 3;
-            uint8_t b = (pixel565 & 0x001F) << 3;
+                if (!whitish) {
+                    bool colored = (r > 0xF0) || ((g > 0xF0) && (b > 0xF0));
+                    uint8_t mask = 0x80 >> (col & 7);
+                    uint16_t byteIdx = col >> 3;
 
-
-
-            bool whitish = ((uint16_t) r + (uint16_t) g + (uint16_t) b) > (3 * 128);
-            bool colored = (r > 0xF0) || ((g > 0xF0) && (b > 0xF0));
-
-            if (!whitish) {
-
-                if (with_color && colored) {
-                    // This is a color pixel
-                    // monoBuffer - keep 1 (untouched => white)
-                    // colorBuffer - clear bit => 0 = color
-                    colorBuffer[col / 8] &= ~(0x80 >> (col & 7));
-                } else {
-                    // Consider it black
-                    // monoBuffer => clear bit => 0 = black
-                    // colorBuffer => remains 1 (white)
-                    monoBuffer[col / 8] &= ~(0x80 >> (col & 7));
+                    if (with_color && colored) {
+                        colorRow[byteIdx] &= ~mask;
+                    } else {
+                        monoRow[byteIdx] &= ~mask;
+                    }
                 }
             }
         }
 
-
-        if (y % 32 == 0) {
-            debug.println("[DEBUG] Converting row " + String(y) + "/" + String(height) + "...");
-        }
-
-
-        display.writeImage(monoBuffer, colorBuffer, 0, y, width, 1);
+        // Write batch to display controller in one call
+        display.writeImage(monoBuffer, colorBuffer, 0, y, width, batchH);
 
         esp_task_wdt_reset();
-        y++;
+        y += batchH;
+
+        if (y % 64 == 0 || y >= height) {
+            Serial.println("[TIMING] Processed " + String(y) + "/" + String(height) + " rows");
+        }
     }
 
-    debug.println("[IMAGE_UTILS] Display refresh complete.");
+    unsigned long processTime = millis() - t0;
+    Serial.println("[TIMING] Read + convert + write: " + String(processTime) + " ms (" + String(y) + " rows)");
+
+    // Single display refresh (hardware limit ~32s for 3-color e-paper)
+    t0 = millis();
+    Serial.println("[TIMING] Starting display.refresh()...");
     display.refresh();
-    debug.println("[IMAGE_UTILS] Processed " + String(y) + " lines in total.");
+    Serial.println("[TIMING] Display refresh: " + String(millis() - t0) + " ms");
+    Serial.println("[TIMING] Total pipeline: " + String(millis() - totalStart) + " ms");
 
     free(colorBuffer);
     free(monoBuffer);
-    free(rowBuffer);
+    free(readBuffer);
     file.close();
-
-    debug.println("[IMAGE_UTILS] Image successfully displayed.");
 }
 
 // Task implementation for image rendering
